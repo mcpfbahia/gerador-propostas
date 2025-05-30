@@ -13,7 +13,7 @@ st.set_page_config(page_title="Gerador de Propostas", layout="centered")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 kits_file = os.path.join(BASE_DIR, 'kits.xlsx')
-modelo_default = os.path.join(BASE_DIR, 'modelo.docx')
+modelo_default = os.path.join(BASE_DIR, 'modelo_novo.docx')
 output_dir = os.path.join(BASE_DIR, 'propostas_geradas')
 logo_path = os.path.join(BASE_DIR, 'imagens', 'logo.png')
 
