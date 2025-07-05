@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from docx import Document
@@ -13,7 +12,7 @@ st.set_page_config(page_title="Gerador de Propostas", layout="centered")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 kits_file = os.path.join(BASE_DIR, 'kits.xlsx')
-modelo_default = os.path.join(BASE_DIR, 'modelo.docx')
+modelo_default = os.path.join(BASE_DIR, 'modelo-chave-mao.docx')
 output_dir = os.path.join(BASE_DIR, 'propostas_geradas')
 logo_path = os.path.join(BASE_DIR, 'imagens', 'logo.png')
 
@@ -71,17 +70,29 @@ def gerar_proposta(kits_file, modelo_file, kits_selecionados, nome_cliente, dist
         except (ValueError, TypeError):
             area_num = 0.0
         peso_total += peso_kit * quant
+        # Cálculo de valor à vista com desconto do sistema
         valor_avista = preco_normal * quant * (1 - desconto_percentual / 100)
 
     frete_normal = (peso_total / 1000) * 1150
     frete_adicional = max(0, (distancia_loja - 200)) * 5.50
     frete_total = frete_normal + frete_adicional
 
-    valor_chave_mao = preco_normal * quant * 2.15
+    # Novos campos para o modelo:
+    valor_final_com_frete = valor_avista + frete_total
+    desconto_em_reais = preco_normal * quant * (desconto_percentual / 100)
+
+
+    # --- Fator "Chave na Mão" automático ---
+    # --- Cálculo Chave na Mão usando fórmula combinada ---
+    subtotal_kit = preco_normal * quant * 1.2
+    subtotal_area = area_num * 900
+    valor_chave_mao = subtotal_kit + subtotal_area
     mao_obra_e_opcionais = valor_chave_mao - valor_avista
 
-    CUB_ALVENARIA = 2900
-    CUB_PREFAB = 2150
+
+    # --- CUBs atualizados ---
+    CUB_ALVENARIA = 2500
+    CUB_PREFAB = 1900
 
     custo_alvenaria = CUB_ALVENARIA * area_num
     custo_chave_mao = CUB_PREFAB * area_num
@@ -106,7 +117,7 @@ def gerar_proposta(kits_file, modelo_file, kits_selecionados, nome_cliente, dist
         '{{50%_valor_avista}}': formatar_moeda(valor_avista / 2),
         '{{valor_chave_mao1}}': formatar_moeda(valor_chave_mao),
         '{{valor_chave_mao}}': formatar_moeda(valor_chave_mao),
-        '{{valor_kit}}': formatar_moeda(valor_avista),  # <- corrigido aqui: valor total COM desconto
+        '{{valor_kit}}': formatar_moeda(valor_avista),  # valor total COM desconto
         '{{valor_mao_obra}}': formatar_moeda(mao_obra_e_opcionais),
         '{{tam_kit}}': f"{area_num} m²",
         '{{prazo_construcao}}': prazo_construcao,
@@ -119,7 +130,10 @@ def gerar_proposta(kits_file, modelo_file, kits_selecionados, nome_cliente, dist
         '{{custo_chave_mao}}': formatar_moeda(custo_chave_mao),
         '{{economia_cub}}': formatar_moeda(economia_cub),
         '{{porcentagem_desconto}}': f'({desconto_percentual}%)',
-        '{{data_atual}}': datetime.datetime.today().strftime('%d/%m/%Y')
+        '{{data_atual}}': datetime.datetime.today().strftime('%d/%m/%Y'),
+        # Novos placeholders:
+        '{{desconto}}': formatar_moeda(desconto_em_reais),
+        '{{frete_total+valor_avista}}': formatar_moeda(valor_final_com_frete),
     }
 
     modelo = Document(modelo_file)
@@ -145,11 +159,13 @@ def gerar_proposta(kits_file, modelo_file, kits_selecionados, nome_cliente, dist
     modelo.save(output_path)
     return output_path
 
+# --------------- INTERFACE STREAMLIT -----------------
+
 st.title("Gerador de Propostas")
 
 nome_cliente = st.text_input("Nome do Cliente")
 distancia_loja = st.number_input("Distância da Loja (km)", min_value=0.0, step=1.0)
-desconto_percentual = st.slider("Desconto (%)", min_value=1, max_value=12, value=5)
+desconto_percentual = st.slider("Desconto (%)", min_value=0, max_value=15, value=0)
 kits = []
 
 if os.path.exists(kits_file):
